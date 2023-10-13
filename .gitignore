@@ -1,0 +1,5 @@
+.python-version
+data/~*
+save.txt
+cur_save.txt
+save.json
