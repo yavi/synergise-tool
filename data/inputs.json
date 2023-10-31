@@ -1,0 +1,20 @@
+{
+    "targetGainPercent": 150,
+    "addUsesPerDay": 20,
+    "hps": "4.7e7",
+    "shopQuarkCost": {
+        "seasonPass": { "base": 925, "inc": 75 },
+        "seasonPass2": { "base": 4750, "inc": 250 },
+        "seasonPass3": { "base": 9500, "inc": 500 },
+        "seasonPassY": { "base": 18500, "inc": 1500 },
+        "chronometer": { "base": 3500, "inc": 500 },
+        "chronometer2": { "base": 8500, "inc": 1500 },
+        "offeringEX": { "base": 290, "inc": 10 },
+        "offeringAuto": { "base": 290, "inc": 10 },
+        "obtainiumEX": { "base": 290, "inc": 10 },
+        "obtainiumAuto": { "base": 290, "inc": 10 },
+        "antSpeed": { "base": 375, "inc": 25 },
+        "cashGrab": { "base": 160, "inc": 40 }
+    }
+    
+}

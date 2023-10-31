@@ -3,5 +3,5 @@
 loguru>=0.7
 pandas>=2.1
 numpy>=1.26
-munch>=4.0
 pydantic>=2.4
+openpyxl >= 3.1
