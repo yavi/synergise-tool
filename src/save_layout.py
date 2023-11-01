@@ -16,7 +16,9 @@ class Hepteract(BaseModel, alias_generator=lambda s: s.upper()):
     cap: float
     base_cap: float
     hepteract_conversion: int
-
+    other_conversions: Dict[str, float]
+    html_string: str
+    
     @property
     def tier(self) -> int:
         """Return the tier of the hepteract."""
@@ -53,6 +55,11 @@ class Hepteract(BaseModel, alias_generator=lambda s: s.upper()):
         if self.balance < limit:
             return self.balance
         return limit * (self.balance / limit) ** (dr + boost)
+    
+    def buyable(self, hepts: int, quarks: int = 0) -> int:
+        if self.html_string == "quark":
+            return min(math.floor(hepts / self.hepteract_conversion), math.floor(quarks / self.other_conversions["worlds"]))
+        return math.floor(hepts / self.hepteract_conversion)
 
 
 class HepteractCrafts(BaseModel):
@@ -183,6 +190,11 @@ class SynergismConfig(BaseModel):
     addUsesPerDay: int
     hps: float
     shopQuarkCost: ShopQuarkCosts
+    quarkKeep: float
+
+    @property
+    def quark_keep(self) -> int:
+        return math.floor(self.quarkKeep)
 
 
 class SynergismGame(BaseModel):
@@ -296,8 +308,12 @@ class SynergismGame(BaseModel):
 
         return self.shop_benefit_hept * self.config.hps * self.multiplier * (86400 + self.config.addUsesPerDay * 60 * self.shop.calculator3)
 
-    def buyable_hept(self, hept: Hepteract) -> int:
-        return math.floor(self.wowAbyssals)
+
+    @cached_property
+    def hepts_after_ascension(self) -> int:
+        if not self.config:
+            raise ValueError("Config not set")
+        return math.floor((self.wowAbyssals + self.current_ascension_timer * self.config.hps * self.shop_benefit_hept))
 
     @cached_property
     def orb_to_powder(self) -> float:

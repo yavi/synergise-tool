@@ -1,6 +1,7 @@
 {
     "targetGainPercent": 150,
     "addUsesPerDay": 20,
+    "quarkKeep": 3e6,
     "hps": "4.93e8",
     "shopQuarkCost": {
         "seasonPass": { "base": 925, "inc": 75 },

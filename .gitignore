@@ -1,5 +1,10 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
 .python-version
-data/~*
 save.txt
 cur_save.txt
 save.json
+*.pyc
+

@@ -15,7 +15,7 @@ from rich.text import Text
 from rich import box
 from loguru import logger
 
-from save_layout import ShopBuys, ShopUpgrades, HepteractCrafts, SynergismConfig, SynergismGame
+from save_layout import Hepteract, ShopBuys, ShopUpgrades, HepteractCrafts, SynergismConfig, SynergismGame
 
 console = Console()
 
@@ -56,10 +56,12 @@ def print_balances(game: SynergismGame) -> List[Table]:
     hepts_table.add_column("Type")
     hepts_table.add_column("Tier")
     hepts_table.add_column("Balance")
+    hepts_table.add_column("Buyable")
 
     for hept_type in game.hepts.model_fields.keys():
-        the_hept = getattr(game.hepts, hept_type)
-        hepts_table.add_row(hept_type.title(), f"{the_hept.tier}", f"{the_hept.balance:.2e}")
+        the_hept: Hepteract = getattr(game.hepts, hept_type)
+        buyable = the_hept.buyable(game.hepts_after_ascension, game.total_quarks - game.config.quark_keep)
+        hepts_table.add_row(hept_type.title(), f"{the_hept.tier}", f"{the_hept.balance:.2e}", f"{'[green]' if the_hept.cap * 2 - buyable < 0 else ''}{buyable:.2e}")
 
     return [hepts_table, cubes, misc_stats]
 
