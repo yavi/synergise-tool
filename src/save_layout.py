@@ -1,4 +1,5 @@
 from functools import cached_property, reduce
+import itertools
 import math
 import time
 
@@ -173,8 +174,9 @@ class ShopBuys:
         wow_pass_idx: int = (sd["WoW Passes"][sd["WoW Passes", "Cost"] - quarks < 0]).idxmax()["Cost"]  # type: ignore[index, assignment]
         accel_idx: int = (sd["Acceleration"][sd["Acceleration", "Cost"] - quarks < 0]).idxmax()["Cost"]  # type: ignore[index, assignment]
 
-        self.wow3, self.wowY, self.wowCost = sd["WoW Passes"].iloc[wow_pass_idx].items()
-        self.accel1, self.accel2, self.accelCost = sd["Acceleration"].iloc[accel_idx].items()
+        self.wow3, self.wowY, self.wowCost = [int(x) for x in sd["WoW Passes"].iloc[wow_pass_idx].tolist()]
+        self.accel1, self.accel2, self.accelCost = [int(x) for x in sd["Acceleration"].iloc[accel_idx].tolist()]
+
 
 class SynergismConfig(BaseModel):
     targetGainPercent: int
@@ -207,8 +209,18 @@ class SynergismGame(BaseModel):
 
     config: Optional[SynergismConfig] = Field(skip=True, required=False, default=None)
 
+    shop_benefit_hept: float = Field(skip=True, required=False, default=0)
+    shop_benefit_accel: float = Field(skip=True, required=False, default=0)
+
     def set_config(self, config: SynergismConfig) -> None:
         self.config = config
+
+    def set_shop_benefits(self, buys: ShopBuys) -> None:
+        if self.total_quarks > 2000:
+            self.shop_benefit_accel = round(1 + 0.01 * buys.accel1 + buys.accel2 * 0.005 + 0.01 * buys.accel1 * buys.accel2 * 0.005, 3)
+        
+        if self.total_quarks > 5000:
+            self.shop_benefit_hept = round(1 +  0.01 * buys.wow3 + buys.wowY * 0.005 + 0.01 * buys.wow3 * buys.wowY * 0.005, 3)
 
     def get_plat_upgrade(self, row: int, column: int) -> int:
         try:
@@ -216,7 +228,7 @@ class SynergismGame(BaseModel):
         except IndexError:
             return 0
 
-    def get_achievment(self, id: int) -> int:
+    def get_achievement(self, id: int) -> int:
         try:
             return self.achievements[id]
         except IndexError:
@@ -252,8 +264,8 @@ class SynergismGame(BaseModel):
         )
         omegaBoost = 1 + 0.002 * sum(self.usedCorruptions) * self.get_plat_upgrade(3, 5)
         chronosBoost = 1 + 0.6 / 1000 * self.hepts.chronos.effective_boost(1000, 1 / 6, 1 / 750 * self.u44)
-        achievementBoost = (1 + min(0.1, 1 / 100 * math.log10(self.ascensionCount + 1)) * self.get_achievment(262)) * (
-            1 + min(0.10, 1 / 100 * math.log10(self.ascensionCount + 1)) * self.get_achievment(263)
+        achievementBoost = (1 + min(0.1, 1 / 100 * math.log10(self.ascensionCount + 1)) * self.get_achievement(262)) * (
+            1 + min(0.10, 1 / 100 * math.log10(self.ascensionCount + 1)) * self.get_achievement(263)
         )
 
         return c15boost * shopUpgrades * omegaBoost * chronosBoost * achievementBoost
@@ -277,5 +289,72 @@ class SynergismGame(BaseModel):
 
         return math.floor(self.quarksLeft) + used_sum - 15
 
+    @cached_property
+    def hept_per_day(self) -> float:
+        if not self.config:
+            raise ValueError("Config not set")
+
+        return self.shop_benefit_hept * self.config.hps * self.multiplier * (86400 + self.config.addUsesPerDay * 60 * self.shop.calculator3)
+
     def buyable_hept(self, hept: Hepteract) -> int:
         return math.floor(self.wowAbyssals)
+
+    @cached_property
+    def orb_to_powder(self) -> float:
+        denominator = math.prod(
+            [
+                1 / 100,
+                1 + 1 / 50 * math.log2(self.challenge15Exponent / (7000000000000000 / 32)),
+                1 + self.shop.powderEX / 50,
+                1 + self.get_achievement(256) / 20,
+                1 + self.get_achievement(257) / 20,
+                1 + 0.01 * self.get_plat_upgrade(4, 1),
+            ]
+        )
+        return 1/denominator
+
+    @property
+    def hepts_small_inc(self) -> float:
+        return self.hepts.chronos.to_level * 0.0000001 / self.orb_to_powder / 250000
+    
+    @property
+    def p44_noname(self) -> float:
+        """ Dimnishing returns reduction value """
+        return (1+0.0000001/2) ** ((1/6)+((1/750)*self.get_plat_upgrade(4, 4)))
+
+    @property
+    def powder_tomorrow(self) -> float:
+        return self.overfluxPowder + self.overfluxOrbs / self.orb_to_powder
+
+    @property
+    def cube_from_powder(self) -> float:
+        if self.powder_tomorrow > 10000:
+            return 1+1/16* (math.log10(self.powder_tomorrow) ** 2) - 1 
+        else:
+            return 1+1/10000*self.powder_tomorrow - 1
+
+    @property
+    def powder_goal(self) -> float:
+        """
+        F5 = small incr in hept
+        G7 = overflux powder
+        E5 = p44_noname
+        C3 = chronos increase
+        E3 = hepts to level
+        G5 = orb_to_powder
+
+        =IF(Formulas!$F$5/((Formulas!G7)^(Formulas!E5-1)-1)<10000,
+            IF(((Formulas!C3+1)^(1/Formulas!E3)-1)*10000*250000*Formulas!G5>1,
+                Formulas!G7+ROUNDDOWN(Formulas!G3/24/250000)/Formulas!G5,10000),
+            (Formulas!$F$5/((Formulas!$F$5/((Formulas!$F$5/((Formulas!$F$5/((Formulas!G7)^(Formulas!E5-1)-1))^(Formulas!E5-1)-1))^(Formulas!E5-1)-1))^(Formulas!E5-1)-1))/(B10+1)*B10)
+        """
+        if self.hepts_small_inc / ((self.overfluxPowder) ** (self.p44_noname - 1) - 1) < 10000:
+            if self.chronos_increase + 1 ** (1 / self.hepts.chronos.to_level) - 1 * 1000 * 250000 * self.orb_to_powder > 1:
+                return self.overfluxPowder + math.floor(self.hept_per_day / 24 / 250000) / self.orb_to_powder
+            else:
+                return 10000
+        return (self.hepts_small_inc / ((self.hepts_small_inc / ((self.hepts_small_inc / ((self.hepts_small_inc / ((self.overfluxPowder) ** (self.p44_noname -1) -1)) ** (self.p44_noname -1) -1)) ** (self.p44_noname -1) -1)) ** (self.p44_noname -1) -1)) / (self.cube_from_powder + 1) * self.cube_from_powder
+
+    @property
+    def orbs_to_powder_goal(self) -> float:
+        return (self.powder_goal - self.overfluxPowder) * self.orb_to_powder - self.overfluxOrbs
